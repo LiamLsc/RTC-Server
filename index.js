@@ -1,13 +1,40 @@
 const WebSocket = require("ws");
+const http = require('http');
+const url = require('url');
 const RoomManager = require("./roomManager");
 
 // 使用环境变量端口，Zeabur会自动分配
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT) || 3000;
+console.log(`🎯 Attempting to bind to PORT: ${PORT}`);
+
+const server = http.createServer((req, res) => {
+  const parsedUrl = url.parse(req.url, true);
+  
+  if (parsedUrl.pathname === '/health') {
+    res.writeHead(200);
+    res.end('OK');
+    return;
+  }
+  
+  if (parsedUrl.pathname === '/rooms') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      activeRooms: roomManager.getRoomCount ? roomManager.getRoomCount() : 0
+    }));
+    return;
+  }
+  
+  res.writeHead(404);
+  res.end('Not Found');
+});
+
+const roomManager = new RoomManager();
+
+
+// 创建WebSocket服务器，与HTTP服务器共享同一个端口
 const wss = new WebSocket.Server({ 
-  port: PORT,
-  // 处理跨域
+  server, // 使用现有的HTTP服务器实例
   clientTracking: true,
-  // 确保支持代理
   perMessageDeflate: {
     zlibDeflateOptions: {
       chunkSize: 1024,
@@ -23,36 +50,6 @@ const wss = new WebSocket.Server({
     concurrencyLimit: 10,
     threshold: 1024
   }
-});
-
-const roomManager = new RoomManager();
-
-// 添加健康检查端点
-const http = require('http');
-const server = http.createServer((req, res) => {
-  if (req.url === '/health') {
-    res.writeHead(200);
-    res.end('OK');
-    return;
-  }
-  
-  if (req.url === '/rooms') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      activeRooms: roomManager.getRoomCount ? roomManager.getRoomCount() : 0
-    }));
-    return;
-  }
-  
-  res.writeHead(404);
-  res.end('Not Found');
-});
-
-server.on('upgrade', (request, socket, head) => {
-  // 处理WebSocket升级请求
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit('connection', ws, request);
-  });
 });
 
 server.listen(PORT, '0.0.0.0', () => {

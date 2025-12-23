@@ -4,7 +4,7 @@
     "output": "."
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "node index.js",
     "healthCheckPath": "/health",
     "restartPolicy": {
       "maxRetries": 3,
