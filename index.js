@@ -1,14 +1,16 @@
 const WebSocket = require("ws");
 const http = require('http');
-const url = require('url');
 const RoomManager = require("./roomManager");
 
 // 使用环境变量端口，Zeabur会自动分配
 const PORT = parseInt(process.env.PORT) || 3000;
 console.log(`🎯 Attempting to bind to PORT: ${PORT}`);
 
+const roomManager = new RoomManager();
+
 const server = http.createServer((req, res) => {
-  const parsedUrl = url.parse(req.url, true);
+  // 使用WHATWG URL API替代已弃用的url.parse()
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   
   if (parsedUrl.pathname === '/health') {
     res.writeHead(200);
@@ -27,9 +29,6 @@ const server = http.createServer((req, res) => {
   res.writeHead(404);
   res.end('Not Found');
 });
-
-const roomManager = new RoomManager();
-
 
 // 创建WebSocket服务器，与HTTP服务器共享同一个端口
 const wss = new WebSocket.Server({ 
